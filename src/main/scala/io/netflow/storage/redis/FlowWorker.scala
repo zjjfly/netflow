@@ -2,7 +2,7 @@ package io.netflow.storage.redis
 
 import java.net.InetAddress
 
-import com.twitter.finagle.redis.util.StringToChannelBuffer
+import com.twitter.finagle.redis.util.StringToBuf
 import io.netflow.flows._
 import io.netflow.lib._
 import io.wasted.util._
@@ -11,14 +11,17 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
   override val loggerName = "FlowWorker %02d:".format(num)
 
   private def hincrBy(str1: String, str2: String, inc: Long) = {
-    Connection.client.hIncrBy(StringToChannelBuffer(str1), StringToChannelBuffer(str2), inc)
+    Connection.client.hIncrBy(StringToBuf(str1), StringToBuf(str2), inc)
   }
 
-  private def datagram(s: InetAddress, kind: String, flows: Option[Int] = None) = {
-    val key = StringToChannelBuffer("stats:" + s.getHostAddress)
-    Connection.client.hIncrBy(key, StringToChannelBuffer(kind), 1)
+  private def datagram(
+    s:     InetAddress,
+    kind:  String,
+    flows: Option[Int] = None) = {
+    val key = StringToBuf("stats:" + s.getHostAddress)
+    Connection.client.hIncrBy(key, StringToBuf(kind), 1)
     flows.map { flowCount =>
-      Connection.client.hIncrBy(key, StringToChannelBuffer(kind + ":flows"), flowCount)
+      Connection.client.hIncrBy(key, StringToBuf(kind + ":flows"), flowCount)
     }
   }
 
@@ -33,30 +36,50 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
         /* Handle NetFlowData */
         case flow: NetFlowData[_] =>
           var ourFlow = false
+          prefixes match {
+            case Nil =>
+              val srcAddress = flow.srcAddress
+              val dstAddress = flow.dstAddress
+              if (srcAddress != null || dstAddress != null) ourFlow = true
+              if (srcAddress != null) {
+                val trafficType =
+                  if (dstAddress == null) TrafficType.Outbound
+                  else TrafficType.OutboundLocal
+                save(flowPacket, flow, flow.srcAddress, trafficType, null)
+              }
+              if (dstAddress != null) {
+                val trafficType =
+                  if (srcAddress == null) TrafficType.Inbound
+                  else TrafficType.InboundLocal
+                save(flowPacket, flow, flow.dstAddress, trafficType, null)
+              }
+            case _ =>
+              val srcNetworks = prefixes.filter(_.contains(flow.srcAddress))
+              val dstNetworks = prefixes.filter(_.contains(flow.dstAddress))
+              // src - out
+              var it3 = srcNetworks.iterator
+              while (it3.hasNext) {
+                val prefix = it3.next()
+                ourFlow = true
+                // If it is *NOT* *to* another network we monitor
+                val trafficType =
+                  if (dstNetworks.isEmpty) TrafficType.Outbound
+                  else TrafficType.OutboundLocal
+                save(flowPacket, flow, flow.srcAddress, trafficType, prefix)
+              }
 
-          val srcNetworks = prefixes.filter(_.contains(flow.srcAddress))
-          val dstNetworks = prefixes.filter(_.contains(flow.dstAddress))
-
-          // src - out
-          var it3 = srcNetworks.iterator
-          while (it3.hasNext) {
-            val prefix = it3.next()
-            ourFlow = true
-            // If it is *NOT* *to* another network we monitor
-            val trafficType = if (dstNetworks.length == 0) TrafficType.Outbound else TrafficType.OutboundLocal
-            save(flowPacket, flow, flow.srcAddress, trafficType, prefix)
+              // dst - in
+              it3 = dstNetworks.iterator
+              while (it3.hasNext) {
+                val prefix = it3.next()
+                ourFlow = true
+                // If it is *NOT* *to* another network we monitor
+                val trafficType =
+                  if (srcNetworks.isEmpty) TrafficType.Inbound
+                  else TrafficType.InboundLocal
+                save(flowPacket, flow, flow.dstAddress, trafficType, prefix)
+              }
           }
-
-          // dst - in
-          it3 = dstNetworks.iterator
-          while (it3.hasNext) {
-            val prefix = it3.next()
-            ourFlow = true
-            // If it is *NOT* *to* another network we monitor
-            val trafficType = if (srcNetworks.length == 0) TrafficType.Inbound else TrafficType.InboundLocal
-            save(flowPacket, flow, flow.dstAddress, trafficType, prefix)
-          }
-
           if (!ourFlow) { // invalid flow
             debug("Ignoring Flow: %s", flow)
             datagram(sender.getAddress, "bad")
@@ -73,11 +96,16 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
         case _ => ""
       }
 
-      val packetInfoStr = flowPacket.version.replaceAll("Packet", "-") + " length: " + flowPacket.length + flowSeq
+      val packetInfoStr = flowPacket.version
+        .replaceAll("Packet", "-") + " length: " + flowPacket.length + flowSeq
       val passedFlowsStr = flowPacket.flows.length + "/" + flowPacket.count + " passed"
 
       val recvdFlows = flowPacket.flows.groupBy(_.version)
-      val recvdFlowsStr = recvdFlows.toList.sortBy(_._1).map(fc => if (fc._2.length == 1) fc._1 else fc._1 + ": " + fc._2.length).mkString(", ")
+      val recvdFlowsStr = recvdFlows.toList
+        .sortBy(_._1)
+        .map(fc =>
+          if (fc._2.length == 1) fc._1 else fc._1 + ": " + fc._2.length)
+        .mkString(", ")
 
       // log an elaborate string to loglevel info describing this packet.
       // Warning: can produce huge amounts of logs if written to disk.
@@ -85,10 +113,14 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
 
       // Sophisticated log-level hacking :<
       if (flowPacket.count != flowPacket.flows.length) error(debugStr)
-      else if (debugStr.contains("Template")) info(debugStr) else debug(debugStr)
+      else if (debugStr.contains("Template")) info(debugStr)
+      else debug(debugStr)
 
       // count them to database
-      datagram(sender.getAddress, flowPacket.version, Some(flowPacket.flows.length))
+      datagram(
+        sender.getAddress,
+        flowPacket.version,
+        Some(flowPacket.flows.length))
       val it2 = recvdFlows.iterator
       while (it2.hasNext) {
         val rcvd = it2.next()
@@ -96,7 +128,12 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
       }
   }
 
-  private def save(flowPacket: FlowPacket, flow: NetFlowData[_], localAddress: InetAddress, direction: TrafficType.Value, prefix: InetPrefix) {
+  private def save(
+    flowPacket:   FlowPacket,
+    flow:         NetFlowData[_],
+    localAddress: InetAddress,
+    direction:    TrafficType.Value,
+    prefix:       InetPrefix) {
     val dir = direction.toString
     val ip = localAddress.getHostAddress
     val prot = flow.proto
@@ -129,18 +166,18 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
     account("bytes:" + dir + ":port:" + port, flow.bytes)
     account("pkts:" + dir + ":port:" + port, flow.pkts)
 
-    val pfx = prefix.prefix.toString
+//    val pfx = prefix.prefix.toString
 
     // Account per Sender and Network
-    account("bytes:" + dir + ":" + pfx, flow.bytes)
-    account("pkts:" + dir + ":" + pfx, flow.pkts)
+    //    account("bytes:" + dir + ":" + pfx, flow.bytes)
+    //    account("pkts:" + dir + ":" + pfx, flow.pkts)
 
     // Account per Sender and Network with Protocols
-    account("bytes:" + dir + ":" + pfx + ":proto:" + prot, flow.bytes)
-    account("pkts:" + dir + ":" + pfx + ":proto:" + prot, flow.pkts)
+    account("bytes:" + dir + ":proto:" + prot, flow.bytes)
+    account("pkts:" + dir + ":proto:" + prot, flow.pkts)
 
-    account("bytes:" + dir + ":" + pfx + ":port:" + port, flow.bytes)
-    account("pkts:" + dir + ":" + pfx + ":port:" + port, flow.pkts)
+    account("bytes:" + dir + ":port:" + port, flow.bytes)
+    account("pkts:" + dir + ":port:" + port, flow.pkts)
 
     // Account per Sender and IP
     account("bytes:" + dir + ":" + ip, flow.bytes)

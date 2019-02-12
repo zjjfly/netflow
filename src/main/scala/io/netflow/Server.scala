@@ -10,10 +10,10 @@ import io.netty.bootstrap._
 import io.netty.channel._
 import io.netty.channel.nio._
 import io.netty.channel.socket.nio._
-import io.netty.handler.codec.http.FullHttpRequest
+import io.netty.handler.codec.http.{FullHttpRequest, HttpResponse}
 import io.wasted.util._
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 private[netflow] object Server extends Logger { PS =>
   private val _eventLoop = new AtomicReference[NioEventLoopGroup](null)
@@ -29,42 +29,52 @@ private[netflow] object Server extends Logger { PS =>
     _eventLoop2.set(new NioEventLoopGroup)
     storage.Connection.start()
 
-    def startListeningFor(what: String, listeners: Seq[InetSocketAddress], handler: Option[ChannelHandler]): Boolean = {
+    def startListeningFor(
+      what:      String,
+      listeners: Seq[InetSocketAddress],
+      handler:   Option[ChannelHandler]): Boolean = {
       Try {
         what match {
           case "HTTP" =>
-            val codec = http.HttpCodec[FullHttpRequest]()
+            val codec = http.NettyHttpCodec[FullHttpRequest,HttpResponse]()
               .withMaxHeaderSize(NodeConfig.values.http.maxHeaderSize.bytes)
               .withMaxInitialLineLength(NodeConfig.values.http.maxInitialLineLength.bytes)
               .withMaxResponseSize(NodeConfig.values.http.maxContentLength.bytes)
               .withMaxRequestSize(NodeConfig.values.http.maxChunkSize.bytes)
-            val server = http.HttpServer()
+            val server = http.HttpServer[FullHttpRequest,HttpResponse](codec)
               .withTcpNoDelay(NodeConfig.values.tcp.noDelay)
               .withTcpKeepAlive(NodeConfig.values.tcp.keepAlive)
               .withReuseAddr(NodeConfig.values.tcp.reuseAddr)
               .withSoLinger(NodeConfig.values.tcp.soLinger)
-              .withSpecifics(codec).handler(HttpAuthHandler.apply)
+              .handler(HttpAuthHandler.apply)
             listeners.foreach(server.bind)
 
           case _ if handler.isDefined =>
             listeners.foreach { addr =>
               val srv = new Bootstrap
-              srv.group(eventLoop)
+              srv
+                .group(eventLoop)
                 .localAddress(addr)
                 .channel(classOf[NioDatagramChannel])
                 .handler(handler.get)
                 .option[java.lang.Integer](ChannelOption.SO_RCVBUF, 1500)
               srv.bind().sync
-              info("Listening for %s on %s:%s", what, addr.getAddress.getHostAddress, addr.getPort)
+              info(
+                "Listening for %s on %s:%s",
+                what,
+                addr.getAddress.getHostAddress,
+                addr.getPort)
             }
 
           case _ =>
             warn("No Handler was associated with " + what)
         }
       } match {
-        case Success(v) => true
+        case Success(_) => true
         case Failure(f) =>
-          error("Unable to bind for %s to that ip:port combination. Check your configuration.".format(what))
+          error(
+            "Unable to bind for %s to that ip:port combination. Check your configuration."
+              .format(what))
           if (NodeConfig.values.debugStackTraces) f.printStackTrace()
           false
       }
@@ -99,4 +109,3 @@ private[netflow] object Server extends Logger { PS =>
     info("Shutdown complete")
   }
 }
-

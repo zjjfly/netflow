@@ -2,75 +2,74 @@ package io.netflow.lib
 
 import java.net.InetSocketAddress
 import java.util.UUID
-
-import io.wasted.util.{ Config, Logger, Tryo }
+import io.wasted.util.{Config, Logger, Tryo}
 
 import scala.concurrent.duration._
 
 private[netflow] object NodeConfig extends Logger {
 
   case class ServerConfig(
-    cores: Int,
-    statuslog: Duration,
-    storage: Option[StorageLayer.Value],
+    cores:            Int,
+    statuslog:        Duration,
+    storage:          Option[StorageLayer.Value],
     debugStackTraces: Boolean,
-    admin: AdminConfig,
-    netflow: NetFlowConfig,
-    sflow: SFlowConfig,
-    cassandra: CassandraConfig,
-    redis: RedisConfig,
-    elastic: ElasticSearchConfig,
-    http: HttpConfig,
-    tcp: TcpConfig)
+    admin:            AdminConfig,
+    netflow:          NetFlowConfig,
+    sflow:            SFlowConfig,
+    cassandra:        CassandraConfig,
+    redis:            RedisConfig,
+    elastic:          ElasticSearchConfig,
+    http:             HttpConfig,
+    tcp:              TcpConfig)
 
   case class AdminConfig(
     authKey: UUID,
     signKey: UUID)
 
   case class HttpConfig(
-    listen: Seq[InetSocketAddress],
-    sendFile: Boolean,
-    sendBuffer: Boolean,
-    gzip: Boolean,
-    maxContentLength: Long,
+    listen:               Seq[InetSocketAddress],
+    sendFile:             Boolean,
+    sendBuffer:           Boolean,
+    gzip:                 Boolean,
+    maxContentLength:     Long,
     maxInitialLineLength: Long,
-    maxChunkSize: Long,
-    maxHeaderSize: Long)
+    maxChunkSize:         Long,
+    maxHeaderSize:        Long)
 
   case class RedisConfig(hosts: Seq[String])
   case class ElasticSearchConfig(hosts: Seq[String])
 
   case class CassandraConfig(
-    hosts: Seq[String],
-    keyspace: String,
-    minConns: Int,
-    maxConns: Int,
-    minSimRequests: Int,
-    maxSimRequests: Int,
-    connectTimeout: Int,
-    reconnectTimeout: Int,
-    readTimeout: Int,
-    keyspaceConfig: String)
+                              hosts:            Seq[String],
+                              keyspace:         String,
+                              minConns:         Int,
+                              maxConns:         Int,
+                              minSimRequests:   Int,
+                              maxSimRequests:   Int,
+                              connectTimeout:   Int,
+                              reconnectTimeout: Int,
+                              readTimeout:      Int,
+                              keyspaceConfig:   String)
 
   case class TcpConfig(
-    sendBufferSize: Integer,
+    sendBufferSize:    Integer,
     receiveBufferSize: Integer,
-    noDelay: Boolean,
-    keepAlive: Boolean,
-    reuseAddr: Boolean,
-    soLinger: Int)
+    noDelay:           Boolean,
+    keepAlive:         Boolean,
+    reuseAddr:         Boolean,
+    soLinger:          Int)
 
   case class SFlowConfig(
-    listen: Seq[InetSocketAddress],
+    listen:  Seq[InetSocketAddress],
     persist: Boolean)
 
   case class NetFlowConfig(
-    listen: Seq[InetSocketAddress],
-    persist: Boolean,
+    listen:           Seq[InetSocketAddress],
+    persist:          Boolean,
     calculateSamples: Boolean,
-    extraFields: Boolean)
+    extraFields:      Boolean)
 
-  private var config: ServerConfig = load()
+  private lazy val config: ServerConfig = load()
 
   private def load(): ServerConfig = {
     val adminAuthKey = Config.getString("admin.authKey").flatMap(ak => Tryo(UUID.fromString(ak))) match {
@@ -103,18 +102,19 @@ private[netflow] object NodeConfig extends Logger {
       listen = Config.getInetAddrList("sflow.listen", List("0.0.0.0:6343")),
       persist = Config.getBool("sflow.persist", false))
 
-    val cassandra = CassandraConfig(
-      keyspace = Config.getString("cassandra.keyspace", "netflow"),
-      hosts = Config.getStringList("cassandra.hosts", List("localhost")),
-      minConns = Config.getInt("cassandra.minConns", 5),
-      maxConns = Config.getInt("cassandra.maxConns", 40),
-      minSimRequests = Config.getInt("cassandra.minSimRequests", 5),
-      maxSimRequests = Config.getInt("cassandra.maxSimRequests", 128),
-      connectTimeout = Config.getInt("cassandra.connectTimeout", 5000),
-      reconnectTimeout = Config.getInt("cassandra.reconnectTimeout", 5000),
-      readTimeout = Config.getInt("cassandra.readTimeout", 60000),
-      keyspaceConfig = Config.getString("cassandra.keyspaceConfig",
-        "WITH replication = {'class':'SimpleStrategy', 'replication_factor':1}"))
+//    val cassandra = CassandraConfig(
+//      keyspace = KeySpace(Config.getString("cassandra.keyspace", "netflow")),
+//      hosts = Config.getStringList("cassandra.hosts", List("localhost")),
+//      minConns = Config.getInt("cassandra.minConns", 5),
+//      maxConns = Config.getInt("cassandra.maxConns", 40),
+//      minSimRequests = Config.getInt("cassandra.minSimRequests", 5),
+//      maxSimRequests = Config.getInt("cassandra.maxSimRequests", 128),
+//      connectTimeout = Config.getInt("cassandra.connectTimeout", 5000),
+//      reconnectTimeout = Config.getInt("cassandra.reconnectTimeout", 5000),
+//      readTimeout = Config.getInt("cassandra.readTimeout", 60000),
+//      keyspaceConfig = Config.getString(
+//        "cassandra.keyspaceConfig",
+//        "WITH replication = {'class':'SimpleStrategy', 'replication_factor':1}"))
 
     val redis = RedisConfig(
       hosts = Config.getStringList("redis.hosts", Seq("127.0.0.1:6379")))
@@ -149,21 +149,21 @@ private[netflow] object NodeConfig extends Logger {
       admin = admin,
       netflow = netflow,
       sflow = sflow,
-      cassandra = cassandra,
+      cassandra = null,
       redis = redis,
       elastic = elastic,
       tcp = tcp,
       http = http)
     info("Using %s of %s available cores", server.cores, Runtime.getRuntime.availableProcessors())
     storage.map { layer =>
-      info("You are using the %s storage layer", layer)
+      info(s"You are using the ${layer} storage layer")
     }.getOrElse {
       warn("You are running *WITHOUT* a storage backend, not doing anything!")
     }
     server
   }
 
-  def reload(): Unit = synchronized(config = load())
+//  def reload(): Unit = synchronized(config = load())
 
   def values = config
 

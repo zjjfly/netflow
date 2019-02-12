@@ -5,6 +5,6 @@ import java.net.InetSocketAddress
 import io.wasted.util.InetPrefix
 
 case class SaveJob(
-  sender: InetSocketAddress,
+  sender:     InetSocketAddress,
   flowPacket: FlowPacket,
-  prefixes: List[InetPrefix])
+  prefixes:   List[InetPrefix])

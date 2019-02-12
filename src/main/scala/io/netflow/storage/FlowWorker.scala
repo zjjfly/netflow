@@ -8,7 +8,6 @@ object FlowWorker {
     (1 to NodeConfig.values.cores).toList.map { n =>
       storage match {
         case StorageLayer.Redis => new redis.FlowWorker(n)
-        case StorageLayer.Cassandra => new cassandra.FlowWorker(n)
         //case StorageLayer.ElasticSearch =>
       }
     }

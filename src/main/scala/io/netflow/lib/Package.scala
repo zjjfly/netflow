@@ -12,7 +12,7 @@ import scala.util.{ Failure, Success, Try }
 package object lib {
 
   import io.netflow.flows.cflow.TemplateFields
-  implicit val wheelTimer = WheelTimer()
+  implicit val wheelTimer = WheelTimer
   implicit val formats = net.liftweb.json.DefaultFormats + new InetPrefixSerializer + new DirectionSerializer + new DateTimeSerializer
 
   final val NoBackendDefined = new IllegalArgumentException("No backend is defined") with scala.util.control.NoStackTrace

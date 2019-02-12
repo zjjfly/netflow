@@ -10,7 +10,6 @@ private[storage] trait Connection {
 
 private[netflow] object Connection {
   private def doLayer[T](f: Connection => Future[T]): Future[T] = NodeConfig.values.storage match {
-    case Some(StorageLayer.Cassandra) => f(cassandra.Connection)
     case Some(StorageLayer.Redis) => f(redis.Connection)
     case _ => Future.exception(NoBackendDefined)
   }

@@ -7,8 +7,11 @@ object Node extends App with Logger {
   def start() {
     // OS Checking
     val os = System.getProperty("os.name").toLowerCase
-    if (!(os.contains("nix") || os.contains("nux") || os.contains("bsd") || os.contains("mac") || os.contains("sunos")) || os.contains("win")) {
-      warn("netflow.io has not been tested on %s", System.getProperty("os.name"))
+    if (!(os.contains("nix") || os.contains("nux") || os.contains("bsd") || os
+      .contains("mac") || os.contains("sunos")) || os.contains("win")) {
+      warn(
+        "netflow.io has not been tested on %s",
+        System.getProperty("os.name"))
     }
 
     // JVM Checking
@@ -27,4 +30,3 @@ object Node extends App with Logger {
 
   start()
 }
-

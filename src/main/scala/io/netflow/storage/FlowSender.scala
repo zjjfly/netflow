@@ -24,7 +24,6 @@ private[storage] trait FlowSenderMeta {
 private[netflow] object FlowSender {
   private def doLayer[T](f: FlowSenderMeta => Future[T]): Future[T] = NodeConfig.values.storage match {
     case Some(StorageLayer.Redis) => f(redis.FlowSenderRecord)
-    case Some(StorageLayer.Cassandra) => f(cassandra.FlowSenderRecord)
     case _ => Future.exception(NoBackendDefined)
   }
 

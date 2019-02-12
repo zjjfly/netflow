@@ -5,14 +5,16 @@ root=$(
 	pwd
 )
 
-sbtver=0.13.7
+sbtver=1.1.0
 sbtjar=sbt-launch.jar
-sbtsum=7341059aa30c953021d6af41c89d2cac
+sbtsum=4a75a972d1a9254ff59033c845e20b27
 
 function download {
 	echo "downloading ${sbtjar}" 1>&2
-	wget -O ${sbtjar} "http://dl.bintray.com/typesafe/ivy-releases/org.scala-sbt/sbt-launch/${sbtver}/jars/${sbtjar}"
-	mkdir -p target/ && mv ${sbtjar} target/${sbtjar}
+	https://piccolo.link/sbt-1.1.0.zip
+	wget -O ${sbtjar} "https://piccolo.link/sbt-${sbtver}.zip"
+	unzip sbt-${sbtver}.zip .
+	mkdir -p target/ && mv ./sbt/bin/${sbtjar} target/${sbtjar}
 }
 
 function sbtjar_md5 {

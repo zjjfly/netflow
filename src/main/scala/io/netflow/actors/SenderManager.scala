@@ -3,7 +3,7 @@ package io.netflow.actors
 import java.net.InetAddress
 
 import com.twitter.conversions.time._
-import com.twitter.util.{ Await, Future, Promise }
+import com.twitter.util.{Await, Future, Promise}
 import io.netflow.storage.FlowSender
 import io.wasted.util._
 
@@ -11,6 +11,8 @@ import scala.collection.JavaConverters._
 
 private[netflow] object SenderManager extends Wactor {
   info("Starting up")
+
+  //一个地址对应一个actor
   private val senderActors = LruMap[InetAddress, Wactor.Address](5000)
 
   private case class GetActor(p: Promise[Wactor.Address], addr: InetAddress)
@@ -26,13 +28,18 @@ private[netflow] object SenderManager extends Wactor {
     this ! KillActor(sender)
   }
 
-  def receive = {
+  def receive: PartialFunction[Any, Any] = {
     case KillActor(sender: InetAddress) =>
       senderActors.get(sender).foreach(_ ! Wactor.Die)
       senderActors.remove(sender)
 
     case GetActor(p: Promise[Wactor.Address], sender: InetAddress) =>
-      senderActors.get(sender).map(p.setValue) getOrElse {
+      senderActors
+        .get(sender)
+        .map(w => {
+          p.setValue(w)
+          w
+        }) getOrElse {
         val dbsender = FlowSender.find(sender)
         try {
           val result = Await.result(dbsender, 2.seconds)
@@ -46,7 +53,9 @@ private[netflow] object SenderManager extends Wactor {
   }
 
   def stop() {
-    senderActors.cache.asMap.entrySet.asScala.foreach { _.getValue.value ! Wactor.Die }
+    senderActors.cache.asMap.entrySet.asScala.foreach {
+      _.getValue.value ! Wactor.Die
+    }
     senderActors.cache.invalidateAll()
     info("Stopped")
   }

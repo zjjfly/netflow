@@ -12,7 +12,6 @@ trait NetFlowSeries {
 
 object NetFlowSeries {
   private def doLayer[T](f: NetFlowSeries => Future[T]): Future[T] = NodeConfig.values.storage match {
-    case Some(StorageLayer.Cassandra) => f(cassandra.NetFlowSeries)
     case Some(StorageLayer.Redis) => f(redis.NetFlowSeries)
     case _ => Future.exception(NoBackendDefined)
   }

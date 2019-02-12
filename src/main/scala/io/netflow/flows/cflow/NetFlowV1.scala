@@ -91,7 +91,6 @@ object NetFlowV1Packet {
     }.toOption
 
   private def doLayer[T](f: FlowPacketMeta[NetFlowV1Packet] => Future[T]): Future[T] = NodeConfig.values.storage match {
-    case Some(StorageLayer.Cassandra) => f(storage.cassandra.NetFlowV1Packet)
     case Some(StorageLayer.Redis) => f(storage.redis.NetFlowV1Packet)
     case _ => Future.exception(NoBackendDefined)
   }

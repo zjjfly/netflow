@@ -114,7 +114,6 @@ object NetFlowV6Packet {
     }.toOption
 
   private def doLayer[T](f: FlowPacketMeta[NetFlowV6Packet] => Future[T]): Future[T] = NodeConfig.values.storage match {
-    case Some(StorageLayer.Cassandra) => f(storage.cassandra.NetFlowV6Packet)
     case Some(StorageLayer.Redis) => f(storage.redis.NetFlowV6Packet)
     case _ => Future.exception(NoBackendDefined)
   }
@@ -123,7 +122,7 @@ object NetFlowV6Packet {
 }
 
 case class NetFlowV6Packet(id: UUID, sender: InetSocketAddress, length: Int, uptime: Long, timestamp: DateTime,
-                           flows: List[NetFlowV6],
+                           flows:        List[NetFlowV6],
                            flowSequence: Long, engineType: Int, engineId: Int,
                            samplingInterval: Int, samplingMode: Int) extends FlowPacket {
   def version = "NetFlowV6 Packet"
