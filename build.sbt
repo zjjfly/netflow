@@ -37,7 +37,6 @@ libraryDependencies ++= {
       .excludeAll(ExclusionRule().withOrganization("io.netty")),
     ("com.datastax.cassandra" % "cassandra-driver-core" % "3.5.1")
       .excludeAll(ExclusionRule().withOrganization("io.netty"))
-
   )
 }
 

@@ -9,14 +9,16 @@ import io.wasted.util._
 import org.joda.time.DateTime
 
 /**
- * This spawns just as many workers as configured
- */
+  * This spawns just as many workers as configured
+  */
 private[netflow] object FlowManager extends Logger {
   if (NodeConfig.values.storage.isDefined) info("Starting up")
 
   private lazy val flowWorkers: Option[List[Wactor.Address]] = FlowWorker.get()
   private lazy val flowCounter = new AtomicLong()
-  private def tryWorker = flowWorkers.map(_(flowCounter.getAndIncrement % NodeConfig.values.cores toInt))
+  private def tryWorker =
+    flowWorkers.map(
+      _(flowCounter.getAndIncrement % NodeConfig.values.cores toInt))
 
   def stop() {
     flowWorkers.foreach { workers =>
@@ -29,7 +31,9 @@ private[netflow] object FlowManager extends Logger {
     tryWorker.foreach { _ ! BadDatagram(DateTime.now, sender.getAddress) }
   }
 
-  def save(sender: InetSocketAddress, flowPacket: FlowPacket, pfx: List[InetPrefix]) = {
+  def save(sender: InetSocketAddress,
+           flowPacket: FlowPacket,
+           pfx: List[InetPrefix]) = {
     tryWorker.foreach { _ ! SaveJob(sender, flowPacket, pfx) }
   }
 }

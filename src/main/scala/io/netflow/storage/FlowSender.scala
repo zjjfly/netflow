@@ -7,12 +7,16 @@ import io.netflow.lib._
 import io.wasted.util.InetPrefix
 import org.joda.time.DateTime
 
-private[netflow] case class FlowSender(ip: InetAddress, last: Option[DateTime], prefixes: Set[InetPrefix]) {
+private[netflow] case class FlowSender(ip: InetAddress,
+                                       last: Option[DateTime],
+                                       prefixes: Set[InetPrefix]) {
   def save() = FlowSender.save(this)
   def delete() = FlowSender.delete(ip)
 }
 
-private[storage] case class FlowSenderCount(ip: InetAddress, flows: Long, dgrams: Long)
+private[storage] case class FlowSenderCount(ip: InetAddress,
+                                            flows: Long,
+                                            dgrams: Long)
 
 private[storage] trait FlowSenderMeta {
   def findAll(): Future[List[FlowSender]]
@@ -22,10 +26,11 @@ private[storage] trait FlowSenderMeta {
 }
 
 private[netflow] object FlowSender {
-  private def doLayer[T](f: FlowSenderMeta => Future[T]): Future[T] = NodeConfig.values.storage match {
-    case Some(StorageLayer.Redis) => f(redis.FlowSenderRecord)
-    case _ => Future.exception(NoBackendDefined)
-  }
+  private def doLayer[T](f: FlowSenderMeta => Future[T]): Future[T] =
+    NodeConfig.values.storage match {
+      case Some(StorageLayer.Redis) => f(redis.FlowSenderRecord)
+      case _                        => Future.exception(NoBackendDefined)
+    }
 
   def findAll(): Future[List[FlowSender]] = doLayer { _.findAll() }
   def find(inet: InetAddress): Future[FlowSender] = doLayer { _.find(inet) }

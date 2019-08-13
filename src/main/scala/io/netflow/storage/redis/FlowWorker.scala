@@ -14,10 +14,9 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
     Connection.client.hIncrBy(StringToBuf(str1), StringToBuf(str2), inc)
   }
 
-  private def datagram(
-    s:     InetAddress,
-    kind:  String,
-    flows: Option[Int] = None) = {
+  private def datagram(s: InetAddress,
+                       kind: String,
+                       flows: Option[Int] = None) = {
     val key = StringToBuf("stats:" + s.getHostAddress)
     Connection.client.hIncrBy(key, StringToBuf(kind), 1)
     flows.map { flowCount =>
@@ -117,10 +116,9 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
       else debug(debugStr)
 
       // count them to database
-      datagram(
-        sender.getAddress,
-        flowPacket.version,
-        Some(flowPacket.flows.length))
+      datagram(sender.getAddress,
+               flowPacket.version,
+               Some(flowPacket.flows.length))
       val it2 = recvdFlows.iterator
       while (it2.hasNext) {
         val rcvd = it2.next()
@@ -128,12 +126,11 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
       }
   }
 
-  private def save(
-    flowPacket:   FlowPacket,
-    flow:         NetFlowData[_],
-    localAddress: InetAddress,
-    direction:    TrafficType.Value,
-    prefix:       InetPrefix) {
+  private def save(flowPacket: FlowPacket,
+                   flow: NetFlowData[_],
+                   localAddress: InetAddress,
+                   direction: TrafficType.Value,
+                   prefix: InetPrefix) {
     val dir = direction.toString
     val ip = localAddress.getHostAddress
     val prot = flow.proto
@@ -166,7 +163,7 @@ private[storage] class FlowWorker(num: Int) extends Wactor {
     account("bytes:" + dir + ":port:" + port, flow.bytes)
     account("pkts:" + dir + ":port:" + port, flow.pkts)
 
-//    val pfx = prefix.prefix.toString
+    //    val pfx = prefix.prefix.toString
 
     // Account per Sender and Network
     //    account("bytes:" + dir + ":" + pfx, flow.bytes)

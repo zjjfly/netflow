@@ -84,8 +84,7 @@ object NetFlowV9Packet extends Logger {
         //解析template flowset包
         case 0 | 2 => // template flowset - 0 NetFlow v9, 2 IPFIX
           var templateOffset = packetOffset + 4 // add the 4 byte flowset Header
-          debug(
-            s"Template FlowSet ($flowsetId) from $senderIP:$senderPort " )
+          debug(s"Template FlowSet ($flowsetId) from $senderIP:$senderPort ")
           do {
             val fieldCount = buf.getUnsignedShort(templateOffset + 2)
             val templateSize = fieldCount * 4 + 4
@@ -103,7 +102,8 @@ object NetFlowV9Packet extends Logger {
           } while (templateOffset - packetOffset < flowsetLength)
         //解析option template flowset包
         case 1 | 3 => // template flowset - 1 NetFlow v9, 3 IPFIX
-          debug("OptionTemplate FlowSet (" + flowsetId + ") from " + senderIP + ":" + senderPort)
+          debug(
+            "OptionTemplate FlowSet (" + flowsetId + ") from " + senderIP + ":" + senderPort)
           var templateOffset = packetOffset + 4 // add the 4 byte flowset Header
           do {
             val scopeLen = buf.getUnsignedInteger(templateOffset + 2, 2).toInt

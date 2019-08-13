@@ -29,19 +29,22 @@ private[netflow] object Server extends Logger { PS =>
     _eventLoop2.set(new NioEventLoopGroup)
     storage.Connection.start()
 
-    def startListeningFor(
-      what:      String,
-      listeners: Seq[InetSocketAddress],
-      handler:   Option[ChannelHandler]): Boolean = {
+    def startListeningFor(what: String,
+                          listeners: Seq[InetSocketAddress],
+                          handler: Option[ChannelHandler]): Boolean = {
       Try {
         what match {
           case "HTTP" =>
-            val codec = http.NettyHttpCodec[FullHttpRequest,HttpResponse]()
+            val codec = http
+              .NettyHttpCodec[FullHttpRequest, HttpResponse]()
               .withMaxHeaderSize(NodeConfig.values.http.maxHeaderSize.bytes)
-              .withMaxInitialLineLength(NodeConfig.values.http.maxInitialLineLength.bytes)
-              .withMaxResponseSize(NodeConfig.values.http.maxContentLength.bytes)
+              .withMaxInitialLineLength(
+                NodeConfig.values.http.maxInitialLineLength.bytes)
+              .withMaxResponseSize(
+                NodeConfig.values.http.maxContentLength.bytes)
               .withMaxRequestSize(NodeConfig.values.http.maxChunkSize.bytes)
-            val server = http.HttpServer[FullHttpRequest,HttpResponse](codec)
+            val server = http
+              .HttpServer[FullHttpRequest, HttpResponse](codec)
               .withTcpNoDelay(NodeConfig.values.tcp.noDelay)
               .withTcpKeepAlive(NodeConfig.values.tcp.keepAlive)
               .withReuseAddr(NodeConfig.values.tcp.reuseAddr)
@@ -59,11 +62,10 @@ private[netflow] object Server extends Logger { PS =>
                 .handler(handler.get)
                 .option[java.lang.Integer](ChannelOption.SO_RCVBUF, 1500)
               srv.bind().sync
-              info(
-                "Listening for %s on %s:%s",
-                what,
-                addr.getAddress.getHostAddress,
-                addr.getPort)
+              info("Listening for %s on %s:%s",
+                   what,
+                   addr.getAddress.getHostAddress,
+                   addr.getPort)
             }
 
           case _ =>
@@ -80,9 +82,16 @@ private[netflow] object Server extends Logger { PS =>
       }
     }
 
-    if (!startListeningFor("HTTP", NodeConfig.values.http.listen, None)) return Runtime.getRuntime.halt(0)
-    if (!startListeningFor("NetFlow", NodeConfig.values.netflow.listen, Some(NetFlowHandler))) return Runtime.getRuntime.halt(0)
-    if (!startListeningFor("sFlow", NodeConfig.values.sflow.listen, Some(SFlowHandler))) return Runtime.getRuntime.halt(0)
+    if (!startListeningFor("HTTP", NodeConfig.values.http.listen, None))
+      return Runtime.getRuntime.halt(0)
+    if (!startListeningFor("NetFlow",
+                           NodeConfig.values.netflow.listen,
+                           Some(NetFlowHandler)))
+      return Runtime.getRuntime.halt(0)
+    if (!startListeningFor("sFlow",
+                           NodeConfig.values.sflow.listen,
+                           Some(SFlowHandler)))
+      return Runtime.getRuntime.halt(0)
 
     info("Ready")
 
